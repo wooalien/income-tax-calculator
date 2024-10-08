@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人所得税计算器</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #000;
+        }
+        form {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        label, input, button {
+            display: block;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        input, button {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #000;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #fff;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: right;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            text-align: center;
+        }
+        .tooltip {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: -5px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>中华人民共和国个人所得税计算器</h1>
+    <form id="taxForm">
+        <label for="salary">月工资（元）：</label>
+        <input type="number" id="salary" value="10000" required>
+        <div class="tooltip">您的月度总收入</div>
+
+        <label for="socialSecurityBase">社保基数（元）：</label>
+        <input type="number" id="socialSecurityBase" value="5000" required>
+        <div class="tooltip">用于计算社保和公积金的基数，通常不超过当地平均工资的300%</div>
+
+        <label for="medicalInsuranceRate">医疗保险比例（%）：</label>
+        <input type="number" id="medicalInsuranceRate" value="2" step="0.1" required>
+        <div class="tooltip">医疗保险的缴纳比例，计算时会额外加3元</div>
+
+        <label for="pensionInsuranceRate">养老保险比例（%）：</label>
+        <input type="number" id="pensionInsuranceRate" value="8" step="0.1" required>
+        <div class="tooltip">养老保险的缴纳比例</div>
+
+        <label for="unemploymentInsuranceRate">失业保险比例（%）：</label>
+        <input type="number" id="unemploymentInsuranceRate" value="0.5" step="0.1" required>
+        <div class="tooltip">失业保险的缴纳比例</div>
+
+        <label for="housingFundRate">公积金比例（%）：</label>
+        <input type="number" id="housingFundRate" value="12" step="0.1" required>
+        <div class="tooltip">住房公积金的缴纳比例</div>
+
+        <button type="submit">计算</button>
+    </form>
+    <table id="resultTable">
+        <thead>
+            <tr>
+                <th>月份</th>
+                <th>工资（元）</th>
+                <th>社保缴纳（元）</th>
+                <th>公积金缴纳（元）</th>
+                <th>应纳税所得额（元）</th>
+                <th>当月个税（元）</th>
+                <th>累计个税（元）</th>
+                <th>实际累计收入（元）</th>
+            </tr>
+        </thead>
+        <tbody id="resultBody"></tbody>
+    </table>
+
+    <script>
+        document.getElementById('taxForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            calculateAndDisplay();
+        });
+
+        function calculateAndDisplay() {
+            const salary = parseFloat(document.getElementById('salary').value);
+            const socialSecurityBase = parseFloat(document.getElementById('socialSecurityBase').value);
+            const medicalInsuranceRate = parseFloat(document.getElementById('medicalInsuranceRate').value) / 100;
+            const pensionInsuranceRate = parseFloat(document.getElementById('pensionInsuranceRate').value) / 100;
+            const unemploymentInsuranceRate = parseFloat(document.getElementById('unemploymentInsuranceRate').value) / 100;
+            const housingFundRate = parseFloat(document.getElementById('housingFundRate').value) / 100;
+
+            const results = calculateTax(salary, socialSecurityBase, medicalInsuranceRate, pensionInsuranceRate, unemploymentInsuranceRate, housingFundRate);
+            displayResults(results);
+        }
+
+        function calculateTax(salary, socialSecurityBase, medicalInsuranceRate, pensionInsuranceRate, unemploymentInsuranceRate, housingFundRate) {
+            const results = [];
+            let cumulativeTax = 0;
+            let actualCumulativeIncome = 0;
+
+            for (let month = 1; month <= 12; month++) {
+                const medicalInsurance = socialSecurityBase * medicalInsuranceRate + 3; // Adding 3 yuan as per the requirement
+                const pensionInsurance = socialSecurityBase * pensionInsuranceRate;
+                const unemploymentInsurance = socialSecurityBase * unemploymentInsuranceRate;
+                const housingFund = socialSecurityBase * housingFundRate;
+
+                const totalInsurance = medicalInsurance + pensionInsurance + unemploymentInsurance;
+                const totalDeduction = totalInsurance + housingFund;
+
+                const monthlyTaxableIncome = salary - totalDeduction - 5000;
+                const taxableIncome = monthlyTaxableIncome * month;
+                
+                let tax = 0;
+                if (taxableIncome <= 36000) {
+                    tax = taxableIncome * 0.03;
+                } else if (taxableIncome <= 144000) {
+                    tax = taxableIncome * 0.1 - 2520;
+                } else if (taxableIncome <= 300000) {
+                    tax = taxableIncome * 0.2 - 16920;
+                } else if (taxableIncome <= 420000) {
+                    tax = taxableIncome * 0.25 - 31920;
+                } else if (taxableIncome <= 660000) {
+                    tax = taxableIncome * 0.3 - 52920;
+                } else if (taxableIncome <= 960000) {
+                    tax = taxableIncome * 0.35 - 85920;
+                } else {
+                    tax = taxableIncome * 0.45 - 181920;
+                }
+
+                const monthlyTax = tax - cumulativeTax;
+                cumulativeTax = tax;
+
+                actualCumulativeIncome += salary - totalInsurance - monthlyTax;
+
+                results.push({
+                    month,
+                    salary,
+                    insuranceAmount: totalInsurance,
+                    housingFundAmount: housingFund,
+                    taxableIncome: monthlyTaxableIncome,
+                    monthlyTax,
+                    cumulativeTax,
+                    actualCumulativeIncome
+                });
+            }
+
+            return results;
+        }
+
+        function displayResults(results) {
+            const tableBody = document.getElementById('resultBody');
+            tableBody.innerHTML = '';
+
+            results.forEach(result => {
+                const row = tableBody.insertRow();
+                row.insertCell(0).textContent = result.month;
+                row.insertCell(1).textContent = result.salary.toFixed(2);
+                row.insertCell(2).textContent = result.insuranceAmount.toFixed(2);
+                row.insertCell(3).textContent = result.housingFundAmount.toFixed(2);
+                row.insertCell(4).textContent = result.taxableIncome.toFixed(2);
+                row.insertCell(5).textContent = result.monthlyTax.toFixed(2);
+                row.insertCell(6).textContent = result.cumulativeTax.toFixed(2);
+                row.insertCell(7).textContent = result.actualCumulativeIncome.toFixed(2);
+            });
+
+            document.getElementById('resultTable').style.display = 'table';
+        }
+
+        // Automatically calculate and display results on page load
+        window.onload = calculateAndDisplay;
+    </script>
+</body>
+</html>
